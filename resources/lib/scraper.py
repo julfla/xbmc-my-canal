@@ -41,9 +41,7 @@ def _authenticate():
 class Emission(object):
 
     @classmethod
-    def get_emission_types(cls):
-        '''Returns a list of emissions types available on the website.'''
-	emission_types=[]
+    def get_root_json(cls):
         content = _authenticate()
         output_json = json.loads(content)
         output_json['arborescence'] = dict((arbo['displayName'], arbo) for arbo in output_json['arborescence'])
@@ -52,35 +50,54 @@ class Emission(object):
 
         content = get(emissionsUrl)
         output_json = json.loads(content)
-        matched_contents = output_json['strates'][1]['contents']
-	type_index = 0
+        return output_json
 
+    @classmethod
+    def get_emission_types(cls):
+        '''Returns a list of emissions types available on the website.'''
+        emission_types=[]
+        output_json = cls.get_root_json()
+        matched_contents = output_json['strates'][1]['contents']
+
+        type_index = 0
         for strate in output_json['strates']:
             if strate['type'] == 'contentRow' or strate['type'] == 'contentGrid':
-		emission_types.append({ 'name': strate['title'].strip(), 'index': type_index})
-	    type_index = type_index+1
-
-        #pprint.pprint(emissions)
+                emission_types.append({
+                    'name': strate['title'].strip(),
+                    'index': type_index,
+                    'json': strate
+                })
+                type_index = type_index+1
+            if strate['type'] == 'textList':
+                for inner in strate['contents']:
+                    emission_types.append({
+                        'name': inner['title'].strip(),
+                        'index': type_index,
+                        'json': inner
+                    })
+                    type_index = type_index+1
         return emission_types;
 
     @classmethod
     def get_emissions_from_index(cls, type_index):
         '''Returns a list of emissions available on the website.'''
-        content = _authenticate()
-        output_json = json.loads(content)
-        output_json['arborescence'] = dict((arbo['displayName'], arbo) for arbo in output_json['arborescence'])
-        a_la_demande = output_json['arborescence']['A la demande']
-        emissionsUrl = a_la_demande['onClick']['URLPage'];
+        matched_contents = cls.get_emission_types()[int(type_index)]
 
-        content = get(emissionsUrl)
-        output_json = json.loads(content)
-        matched_contents = output_json['strates'][int(type_index)]['contents']
-	
-        emissions = [{
-            'name': emission['onClick']['displayName'].strip(),
-            'url': emission['onClick']['URLPage'],
-            'icon': emission['URLImage'],
-        } for emission in matched_contents]
+        if 'contents' in matched_contents['json']:
+            emissions = [
+                {
+                'name': emission['onClick']['displayName'].strip(),
+                'url': emission['onClick']['URLPage'],
+                'icon': emission['URLImage'],
+                }
+                for emission in matched_contents['json']['contents']]
+        elif 'onClick' in matched_contents['json']:
+            category_url = matched_contents['json']['onClick']['URLPage']
+            category_json = json.loads(get(category_url))
+            emissions = [{
+                'name': category['onClick']['displayName'],
+                'url': category['onClick']['URLPage'],
+            } for category in category_json['strates'][1]['contents']]
 
         #pprint.pprint(emissions)
         return emissions;
@@ -94,33 +111,37 @@ class Video(object):
         videos=[]
 
 
-	if 'strates' in output_json:
+        if 'strates' in output_json:
             for strate in output_json['strates']:
                 if strate['type'] == 'contentRow' or strate['type'] == 'contentGrid':
-        	    for item in strate['contents']:
-		        videos = Video.fill_videos_from_content(item, videos)
-	else:
+                    for item in strate['contents']:
+                        videos = Video.fill_videos_from_content(item, videos)
+        else:
             for item in output_json['contents']:
-	        videos = Video.fill_videos_from_content(item, videos)
-	    
+                videos = Video.fill_videos_from_content(item, videos)
+
 
         return videos
 
     @staticmethod
     def fill_videos_from_content(content, videos):
+        if content['type'] != 'landing' and content['type'] != 'contentGrid':
+            name = ''
+            if 'title' in content:
+                name = content['title']
+            if 'subtitle' in content:
+                name = name + ' - ' + content['subtitle']
+        else:
+            name = content['subtitle']
+        if 'URLMedias' in content['onClick']:
+            url_str = content['onClick']['URLMedias'].replace('{FORMAT}','hls')
+            videos.append({
+                'name': name.strip(),
+                'url': url_str,
+                'icon': content['URLImage']
+            })
 
-	if content['type'] != 'landing' and content['type'] != 'contentGrid':
-	    name = ''
-	    if 'title' in content:
-	        name = content['title']
-	        if 'subtitle' in content:
-	            name = name + ' - ' + content['subtitle']
-	    else:
-	        name = content['subtitle']
-            videos.append( { 'name': name.strip(),
-                    'url': content['onClick']['URLMedias'].replace('{FORMAT}','hls'),
-                    'icon': content['URLImage']})
-        #pprint.pprint(videos)
+        # pprint.pprint(videos)
         return videos
 
     @staticmethod
@@ -137,10 +158,12 @@ class Media(object):
     def from_url(cls, url):
         content = get(url)
         output_json = json.loads(content)
-	informations = output_json['detail']['informations']
-	media_url = informations['videoURLs'][0]['videoURL']
-        media= { 'name': informations['title'].strip(), 
-		 'url': media_url,
-                 'icon': informations['URLImage']}
+        informations = output_json['detail']['informations']
+        media_url = informations['videoURLs'][0]['videoURL']
+        media= {
+            'name': informations['title'].strip(),
+            'url': media_url,
+            'icon': informations['URLImage']
+            }
         #pprint.pprint(videos)
         return media

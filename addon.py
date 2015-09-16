@@ -1,4 +1,5 @@
 from xbmcswift2 import Plugin
+from xbmcswift2 import xbmcgui
 from resources.lib import scraper
 import pprint
 
@@ -23,9 +24,9 @@ def show_emission_for_type(type_index):
     emissions = scraper.Emission.get_emissions_from_index(type_index)
 
     items = [{
-        'label': emission['name'],
+        'label': emission.get('name'),
         'path': plugin.url_for('show_emission', url=emission['url']),
-        'icon': emission['icon'],
+        'icon': emission.get('icon'),
     } for emission in emissions]
 
     return items
