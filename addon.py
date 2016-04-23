@@ -23,6 +23,7 @@ def index():
 def show_emission_for_type(type_index):
     emissions = scraper.Emission.get_emissions_from_index(type_index)
 
+    pprint.pprint(emissions)
     items = [{
         'label': emission.get('name'),
         'path': plugin.url_for('show_emission', url=emission['url']),
@@ -35,7 +36,7 @@ def show_emission_for_type(type_index):
 def show_emission(url):
     videos = scraper.Video.from_url(url)
 
-    #pprint.pprint(videos)
+    pprint.pprint(videos)
     items = [{
         'label': video['name'],
         'path': plugin.url_for('play_video', url=video['url']),

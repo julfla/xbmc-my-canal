@@ -83,6 +83,7 @@ class Emission(object):
         '''Returns a list of emissions available on the website.'''
         matched_contents = cls.get_emission_types()[int(type_index)]
 
+        pprint.pprint(matched_contents)
         if 'contents' in matched_contents['json']:
             emissions = [
                 {
@@ -94,12 +95,16 @@ class Emission(object):
         elif 'onClick' in matched_contents['json']:
             category_url = matched_contents['json']['onClick']['URLPage']
             category_json = json.loads(get(category_url))
-            emissions = [{
-                'name': category['onClick']['displayName'],
-                'url': category['onClick']['URLPage'],
-            } for category in category_json['strates'][1]['contents']]
+            pprint.pprint(category_json)
 
-        #pprint.pprint(emissions)
+            contents = [strate
+                        for strate in category_json['strates']
+                        if strate['type'] == 'contentGrid'
+                       ][0]['contents']
+            emissions = [{
+                          'name': content['onClick']['displayName'],
+                          'url': content['onClick']['URLPage'],
+                         } for content in contents]
         return emissions;
 
 class Video(object):
